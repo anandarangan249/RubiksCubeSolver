@@ -16,6 +16,6 @@ if __name__ == '__main__':
     ## Implement the solution
     A = Solution()
     points, edges, faces = A.readInput(data)
-    A.setupCanvas(root, width, height, points, edges, mouse_speed)
+    A.setupCanvas(root, width, height, points, edges, faces, mouse_speed)
     root.title("Rubik's Cube")
     root.mainloop()
