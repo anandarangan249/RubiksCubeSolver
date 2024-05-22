@@ -2,8 +2,6 @@ import tkinter as tk
 import pandas as pd
 from CubeWireFrameUtils import *
 
-# testing ssh
-
 if __name__ == '__main__':
     ## Initializations (Feel free to play around the numbers)
     root = tk.Tk()
