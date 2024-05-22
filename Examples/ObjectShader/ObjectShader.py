@@ -20,3 +20,4 @@ if __name__ == '__main__':
     A.setupCanvas(root, width, height, points, edges, faces, mouse_speed)
     root.title("Object Shader Example")
     root.mainloop()
+
