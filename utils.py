@@ -8,6 +8,7 @@ LIGHT_YELLOW    = '#FFFEE0'
 BLACK           = '#000000'
 
 SIDE_LENGTH = 1.0
+EPSILON = 1e-4
 
 class Solution():
 ##  Read Input
@@ -211,9 +212,9 @@ class Solution():
         Returns:
         -   False if length of line is greater than 1.4 * SIDE_LENGTH; True otherwise
         """
-        if np.linalg.norm(point1 - point2) > (1.4 * SIDE_LENGTH):
-            return False
-        return True
+        if np.linalg.norm(point1 - point2) - SIDE_LENGTH < EPSILON:
+            return True
+        return False
 
     def computeAngleWithZ(self, point1, point2, point3):
         """
