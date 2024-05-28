@@ -21,6 +21,9 @@ colorMap = {
     "GREEN"  : "#009B48"
 }
 
+SIDE_LENGTH = 1.0
+EPSILON = 1e-4
+
 
 class Solution():
 ##  Read Input
@@ -166,27 +169,36 @@ class Solution():
 
         # Display the faces
         for i in range(len(faces)):
+            # Extract the vertices
+            point1 = self.points[:,faces[i][0]]
+            point2 = self.points[:,faces[i][1]]
+            point3 = self.points[:,faces[i][2]]
+
             # Scale point to fit the window and move origin from top left to the center of the window
-            point1 = scale*self.points[:,faces[i][0]] + np.array([w, h, 0])
-            point2 = scale*self.points[:,faces[i][1]] + np.array([w, h, 0])
-            point3 = scale*self.points[:,faces[i][2]] + np.array([w, h, 0])
+            canvasPoint1 = scale*point1 + np.array([w, h, 0])
+            canvasPoint2 = scale*point2 + np.array([w, h, 0])
+            canvasPoint3 = scale*point3 + np.array([w, h, 0])
 
             # Determine how much the normal vector aligns with the Z axis 
             # Dot product of the normal vector and the Z axis
-            factor = self.computeAngleWithZ(point1, point2, point3)
+            factor = self.computeAngleWithZ(canvasPoint1, canvasPoint2, canvasPoint3)
 
             # Find the color corresponding to the alignment
-            # fill_color = self.findColor(max(0,factor))
             fill_color = faces[i][3]
 
             # Fill the face only if it is visible
             if factor >= 0:
-                self.canvas.create_polygon(point1[0], point1[1], point2[0], point2[1], point3[0], point3[1], fill=fill_color)
+                self.canvas.create_polygon(canvasPoint1[0], canvasPoint1[1], 
+                                           canvasPoint2[0], canvasPoint2[1], 
+                                           canvasPoint3[0], canvasPoint3[1], fill=fill_color)
 
-                # Draw the 3 edges 
-                self.canvas.create_line(point1[0], point1[1], point2[0], point2[1], fill = BLACK, width=3)
-                self.canvas.create_line(point2[0], point2[1], point3[0], point3[1], fill = BLACK, width=3)
-                self.canvas.create_line(point3[0], point3[1], point1[0], point1[1], fill = BLACK, width=3)
+                # Draw the edges
+                if self.isLineOnEdgeOfCube(point1, point2):
+                    self.canvas.create_line(canvasPoint1[0], canvasPoint1[1], canvasPoint2[0], canvasPoint2[1], fill = BLACK, width=3)
+                if self.isLineOnEdgeOfCube(point2, point3):
+                    self.canvas.create_line(canvasPoint2[0], canvasPoint2[1], canvasPoint3[0], canvasPoint3[1], fill = BLACK, width=3)
+                if self.isLineOnEdgeOfCube(point3, point1):
+                    self.canvas.create_line(canvasPoint3[0], canvasPoint3[1], canvasPoint1[0], canvasPoint1[1], fill = BLACK, width=3)
 
     def createCanvas(self):
         """
@@ -203,6 +215,22 @@ class Solution():
         self.canvas.pack()
 
 #   Math Functions
+    def isLineOnEdgeOfCube(self, point1, point2):
+        """
+        Given two points, it finds if the line segment connecting them is an edge or a diagonal
+
+        Assumption: uses the global const SIDE_LENGTH
+
+        Args:
+        -   point1, point2, - 2 numpy arrays of shape (3,1) corresponding to the endpoints of the line
+
+        Returns:
+        -   False if length of line is greater than 1.4 * SIDE_LENGTH; True otherwise
+        """
+        if np.linalg.norm(point1 - point2) - SIDE_LENGTH < EPSILON:
+            return True
+        return False
+
     def findColor(self, factor):
         """
         Computes the intensity of blue color by affine interpolation between 5F and FF using factor 
