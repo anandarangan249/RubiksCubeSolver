@@ -6,6 +6,21 @@ from math import *
 # Colors
 LIGHT_YELLOW    = '#FFFEE0'
 BLACK           = '#000000'
+WHITE           = '#FFFFFF'
+YELLOW          = '#FFFF00'
+RED             = '#EE0000'
+ORANGE          = '#FFA500'
+BLUE            = '#0000FF'
+GREEN           = '#00EE00'
+
+ColorMap = {
+    "+X": WHITE,
+    "-X": YELLOW,
+    "+Y": RED,
+    "-Y": ORANGE,
+    "+Z": GREEN,
+    "-Z": BLUE,
+}
 
 SIDE_LENGTH = 1.0
 EPSILON = 1e-4
@@ -22,7 +37,7 @@ class Solution():
         Returns:
         -   points: A list of shape (vertices_num,3) representing the vertices and their coordinates
         -   edges: A list of the form [..., (vi, vj), ...] representing a unique edge between vertex i and j
-        -   faces: A list of the form [..., (vi, vj, vk, color), ...] representing a face containing vertices i, j and k
+        -   faces: A list of the form [..., (vi, vj, vk), ...] representing a face containing vertices i, j and k
         """
 
         points = []
@@ -39,7 +54,8 @@ class Solution():
 
         # Get the edge and face information from lines vertices_num+2 - vertices_num+faces_num+1
         for i in range(int(vertices_num)+1,len(data)):
-            v1, v2, v3, color = data[i][0].split(',')
+            v1, v2, v3 = data[i][0].split(',')
+            color = self.getFaceColor(points, int(v1) - 1, int(v2) - 1, int(v3) - 1)
             faces.append([int(v1)-1, int(v2)-1, int(v3)-1, color])
             if (int(v1)-1, int(v2)-1) not in edges:
                 edges.append([int(v1)-1, int(v2)-1])
@@ -199,6 +215,47 @@ class Solution():
         self.canvas = tk.Canvas(self.root, bg=LIGHT_YELLOW, width=self.width, height=self.height)
         self.canvas.pack()
 
+## Cube Related Functions
+    def getFaceColor(self, pointsList, v1, v2, v3):
+        """
+        Given three points of a face of the cube, return the color corresponding to the face.
+        Return Black, if it is one of the inside facing edges
+
+        Assumption: uses the global map colorMap
+
+        Args:
+        -   pointsList - list of size [number of points, 3] corresponding to each vertex of the cube
+        -   v1, v2, v3 - 3 int corresponding to the edge for which the color is being determined
+
+        Returns:
+        -   String representing the color of the side
+        """
+
+        # Get the point coordinates from the vertices
+        point1 = np.array(pointsList[v1])
+        point2 = np.array(pointsList[v2])
+        point3 = np.array(pointsList[v3])
+
+        # Get the normal vector
+        normal_vector = self.computeOutwardNormal(point1, point2, point3, np.array([0,0,0]))
+
+        if (normal_vector[0] > EPSILON):
+            return ColorMap['+X']
+        elif (normal_vector[0] < -EPSILON):
+            return ColorMap['-X']
+        elif (normal_vector[1] > EPSILON):
+            return ColorMap['+Y']
+        elif (normal_vector[1] < -EPSILON):
+            return ColorMap['-Y']
+        elif (normal_vector[2] > EPSILON):
+            return ColorMap['+Z']
+        elif (normal_vector[2] < -EPSILON):
+            return ColorMap['-Z']
+        else:
+            print("ERROR!!    getFaceColor    normal_vector matches no axis!!  normal_vector = [" + normal_vector[0] + ", " + 
+                                                                                                    normal_vector[1] + ", " + 
+                                                                                                    normal_vector[2])
+
 ##   Math Functions
     def isLineOnEdgeOfCube(self, point1, point2):
         """
@@ -215,10 +272,37 @@ class Solution():
         if np.linalg.norm(point1 - point2) - SIDE_LENGTH < EPSILON:
             return True
         return False
+    
+    def computeOutwardNormal(self, point1, point2, point3, interiorPoint):
+        """
+        Computes the outward normal of the plane containing the given 3 points
+
+        Args:
+        -   point1, point2, point3 - 3 numpy arrays of shape (3,1)
+        -   interiorPoint - numpy array of shape (3,1)
+
+        Returns:
+        -   A numpy array of shape (3,1) corresponding to the normal of the plane
+        """
+
+        # Form 2 vectors with same origin
+        vector1 = point1 - point2
+        vector2 = point3 - point2
+
+        # Get the unit normal vector by cross product and normalization
+        normal_vector = np.cross(vector1, vector2)
+        normal_vector /= np.linalg.norm(normal_vector)
+        # Since origin is an interior point, if the normal vector aligns with 
+        # the point1 (or point2 or point3) vector, then it is an outward facing vector 
+
+        if normal_vector @ (point1-interiorPoint) < 0: # The vector is an inward normal normal
+            normal_vector = -1.0 * normal_vector
+        return normal_vector
 
     def computeAngleWithZ(self, point1, point2, point3):
         """
-        Computes how much the normal vector of the plane containing three points aligns with the Z axis
+        Computes how much the outward normal vector of the plane containing three points 
+        aligns with the Z axis
 
         Assumption1: The given 3D image is convex
 
@@ -234,25 +318,14 @@ class Solution():
         -   A number between -1.0 and 1.0 corresponding to the level of alignment with Z axis
         """
 
-        # Form 2 vectors with same origin
-        vector1 = point1 - point2
-        vector2 = point3 - point2
+        # set Origin as the interior point
+        w = self.canvas.winfo_width()/2         # X-coordinate of origin
+        h = self.canvas.winfo_height()/2        # Y-coordinate of origin
+        interiorPoint = np.array([w, h, 0])
 
-        # Get the unit normal vector by cross product and normalization
-        normal_vector = np.cross(vector1, vector2)
-        normal_vector /= np.linalg.norm(normal_vector)
+        # Get the outward normal vector
+        normal_vector = self.computeOutwardNormal(point1, point2, point3, interiorPoint)
 
-        w = self.canvas.winfo_width()/2         # X-coordinate of the origin
-        h = self.canvas.winfo_height()/2        # Y-coordinate of the origin
-
-        # Since origin is an interior point, if the normal vector aligns with 
-        # the point1 (or point2 or point3) vector, then it is an outward facing vector 
-
-        # Note: Z axis in Tkinter Canvas is away from the user, so the signs are inverted
-        if normal_vector @ (point1-np.array([w,h,0])) < 0: # The vector is an outward normal
-            return -normal_vector[2]
-
-        # The vector is an inward normal
         return normal_vector[2]
 
     def rotateX(self, theta, matrix):
