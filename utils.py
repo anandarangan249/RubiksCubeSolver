@@ -27,7 +27,7 @@ EPSILON = 1e-4
 
 class Solution():
 ##  Read Input
-    def readInput(self,data):
+    def intializeData(self,data):
         """
         Extract the information of point coordinates, edges, faces, and face-colors
 
@@ -40,9 +40,15 @@ class Solution():
         -   faces: A list of the form [..., (vi, vj, vk), ...] representing a face containing vertices i, j and k
         """
 
+        cube_points = []
+        cube_edges = []
+        cube_faces = []
+        cube_colors = []
+
         points = []
         edges = []
         faces = []
+        colors = []
 
         # Get the number of vertices from the first line
         vertices_num, _ = data[0][0].split(',')
@@ -50,24 +56,40 @@ class Solution():
         # Get the point coordinates from lines 2 - vertices_num+1
         for i in range(1,int(vertices_num)+1):
             _, x, y, z = data[i][0].split(',')
-            points.append([float(x), float(y), float(z)])
+            cube_points.append([float(x), float(y), float(z)])
 
         # Get the edge and face information from lines vertices_num+2 - vertices_num+faces_num+1
         for i in range(int(vertices_num)+1,len(data)):
             v1, v2, v3 = data[i][0].split(',')
-            color = self.getFaceColor(points, int(v1) - 1, int(v2) - 1, int(v3) - 1)
-            faces.append([int(v1)-1, int(v2)-1, int(v3)-1, color])
+            cube_colors.append(self.getFaceColor(cube_points, int(v1) - 1, int(v2) - 1, int(v3) - 1))
+            cube_faces.append([int(v1)-1, int(v2)-1, int(v3)-1])
             if (int(v1)-1, int(v2)-1) not in edges:
-                edges.append([int(v1)-1, int(v2)-1])
+                cube_edges.append([int(v1)-1, int(v2)-1])
             if (int(v1)-1, int(v3)-1) not in edges:
-                edges.append([int(v1)-1, int(v3)-1])
+                cube_edges.append([int(v1)-1, int(v3)-1])
             if (int(v2)-1, int(v3)-1) not in edges:
-                edges.append([int(v2)-1, int(v3)-1])
+                cube_edges.append([int(v2)-1, int(v3)-1])
 
-        return points, edges, faces
+        # For 2x2 cube, offset the initial cube points by 0.5 * SIDE_LENGTH
+        cube_points = (np.array(cube_points) + [-0.5, -0.5, -0.5]).tolist()
+
+        points.extend(cube_points)
+        edges.extend(cube_edges)
+        faces.extend(cube_faces)
+        colors.extend(cube_colors)
+
+        # Duplicate the cube data to form a 2x2 cube
+        for i in range(1,8):
+            offset_vector = [(i // 4) % 2, (i // 2) % 2, i % 2]
+            points.extend((np.array(cube_points) + offset_vector).tolist())
+            edges.extend((np.array(cube_edges) + i*8).tolist())
+            faces.extend((np.array(cube_faces) + i*8).tolist())
+            colors.extend(cube_colors)
+
+        return points, edges, faces, colors
 
 ##   Functions related to UI
-    def setupCanvas(self, root, width, height, points, edges, faces, mouse_speed):
+    def setupCanvas(self, root, width, height, points, edges, faces, colors, mouse_speed):
         """
         Setup Canvas for GUI
 
@@ -90,6 +112,7 @@ class Solution():
         self.height = height
         self.points = np.transpose(points)
         self.epsilon = 0.01*mouse_speed
+        self.colors = colors
 
         # Implementation
         self.createCanvas()
@@ -184,11 +207,14 @@ class Solution():
             # Dot product of the normal vector and the Z axis
             factor = self.computeAngleWithZ(canvasPoint1, canvasPoint2, canvasPoint3)
 
-            # Find the color corresponding to the alignment
-            fill_color = faces[i][3]
+            # Determine if it is an outside face
+            outside_face = self.isOutsideFace(point1, point2, point3)
 
-            # Fill the face only if it is visible
-            if factor >= 0:
+            # Find the color corresponding to the alignment
+            fill_color = self.colors[i]
+
+            # Fill the face only if it is an outside face and visible
+            if outside_face and factor >= 0:
                 self.canvas.create_polygon(canvasPoint1[0], canvasPoint1[1], 
                                            canvasPoint2[0], canvasPoint2[1], 
                                            canvasPoint3[0], canvasPoint3[1], fill=fill_color)
@@ -200,6 +226,9 @@ class Solution():
                     self.canvas.create_line(canvasPoint2[0], canvasPoint2[1], canvasPoint3[0], canvasPoint3[1], fill = BLACK, width=3)
                 if self.isLineOnEdgeOfCube(point3, point1):
                     self.canvas.create_line(canvasPoint3[0], canvasPoint3[1], canvasPoint1[0], canvasPoint1[1], fill = BLACK, width=3)
+
+                origin = np.array([0.0, 0.0, 0.0])*scale + np.array([w, h, 0])
+                self.canvas.create_oval(origin[0], origin[1], origin[0], origin[1], outline='red', width=10)
 
     def createCanvas(self):
         """
@@ -257,6 +286,26 @@ class Solution():
                                                                                                     normal_vector[2])
 
 ##   Math Functions
+    def isOutsideFace(self, point1, point2, point3):
+        """
+        Given three points, this function finds if the plane formed by them is on the 
+        outside of the cube.
+
+        Assumption: uses the global const SIDE_LENGTH
+
+        Args:
+        -   point1, point2, point3 - 3 numpy arrays of shape (3,1) corresponding to the points in the face
+
+        Returns:
+        -   For 2x2, True if origin lies on the plane; False otherwise
+        """
+        
+        normal_vector = np.cross(point2 - point1, point3 - point1)
+        origin = np.array([0.0, 0.0, 0.0])
+        if abs(np.dot(normal_vector, origin - point1)) < EPSILON:
+            return False
+        return True
+
     def isLineOnEdgeOfCube(self, point1, point2):
         """
         Given two points, it finds if the line segment connecting them is an edge or a diagonal
@@ -264,7 +313,7 @@ class Solution():
         Assumption: uses the global const SIDE_LENGTH
 
         Args:
-        -   point1, point2, - 2 numpy arrays of shape (3,1) corresponding to the endpoints of the line
+        -   point1, point2 - 2 numpy arrays of shape (3,1) corresponding to the endpoints of the line
 
         Returns:
         -   False if length of line is greater than 1.4 * SIDE_LENGTH; True otherwise
