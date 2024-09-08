@@ -4,14 +4,14 @@ from math import *
 
 # Global Variables
 # Colors
-LIGHT_YELLOW    = '#FFFEE0'
-BLACK           = '#000000'
-WHITE           = '#FFFFFF'
-YELLOW          = '#FFFF00'
-RED             = '#EE0000'
-ORANGE          = '#FFA500'
-BLUE            = '#0000FF'
-GREEN           = '#00EE00'
+LIGHT_YELLOW    = "#FFFEE0"
+BLACK           = "#000000"
+WHITE           = "#FFFFFF"
+YELLOW          = "#FFFF00"
+RED             = "#EE0000"
+ORANGE          = "#FFA500"
+BLUE            = "#0000FF"
+GREEN           = "#00EE00"
 
 ColorMap = {
     "+X": WHITE,
@@ -71,16 +71,16 @@ class Solution():
         colors = []
 
         # Get the number of vertices from the first line
-        vertices_num, _ = data[0][0].split(',')
+        vertices_num, _ = data[0][0].split(",")
 
         # Get the point coordinates from lines 2 - vertices_num+1
         for i in range(1,int(vertices_num)+1):
-            _, x, y, z = data[i][0].split(',')
+            _, x, y, z = data[i][0].split(",")
             cube_points.append([float(x), float(y), float(z)])
 
         # Get the edge and face information from lines vertices_num+2 - vertices_num+faces_num+1
         for i in range(int(vertices_num)+1,len(data)):
-            v1, v2, v3 = data[i][0].split(',')
+            v1, v2, v3 = data[i][0].split(",")
             cube_colors.append(self.getFaceColor(cube_points, int(v1) - 1, int(v2) - 1, int(v3) - 1))
             cube_faces.append([int(v1)-1, int(v2)-1, int(v3)-1])
             if (int(v1)-1, int(v2)-1) not in edges:
@@ -207,7 +207,7 @@ class Solution():
         cameraPoints = self.rotateX(self.rot_x, cameraPoints)
 
         # Initialization
-        self.canvas.delete('all')
+        self.canvas.delete("all")
         w = self.canvas.winfo_width()/2         # X-coordinate of origin
         h = self.canvas.winfo_height()/2        # Y-coordinate of origin
         
@@ -290,17 +290,17 @@ class Solution():
         normal_vector = self.computeOutwardNormal(point1, point2, point3, np.array([0,0,0]))
 
         if (normal_vector[0] > EPSILON):
-            return ColorMap['+X']
+            return ColorMap["+X"]
         elif (normal_vector[0] < -EPSILON):
-            return ColorMap['-X']
+            return ColorMap["-X"]
         elif (normal_vector[1] > EPSILON):
-            return ColorMap['+Y']
+            return ColorMap["+Y"]
         elif (normal_vector[1] < -EPSILON):
-            return ColorMap['-Y']
+            return ColorMap["-Y"]
         elif (normal_vector[2] > EPSILON):
-            return ColorMap['+Z']
+            return ColorMap["+Z"]
         elif (normal_vector[2] < -EPSILON):
-            return ColorMap['-Z']
+            return ColorMap["-Z"]
         else:
             print("ERROR!!    getFaceColor    normal_vector matches no axis!!  normal_vector = [" + normal_vector[0] + ", " + 
                                                                                                     normal_vector[1] + ", " + 
