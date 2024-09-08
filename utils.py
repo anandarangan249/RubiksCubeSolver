@@ -26,6 +26,26 @@ SIDE_LENGTH = 1.0
 EPSILON = 1e-4
 
 class Solution():
+## Constructor
+    def __init__(self):
+
+        # Tk related variables
+        self.root = None
+        self.width = 0.0
+        self.height = 0.0
+        self.epsilon = 0.0
+
+        # Cube related variables
+        self.points = np.array([])
+        self.colors = []
+
+        # Camera related parameters
+        self.pan_x = 0.0
+        self.pan_y = 0.0
+        self.rot_x = 0.0
+        self.rot_y = 0.0
+        self.zoom = 1.0
+
 ##  Read Input
     def intializeData(self,data):
         """
@@ -94,7 +114,7 @@ class Solution():
         Setup Canvas for GUI
 
         Args:
-        -   root: Represents the Tk instance
+        -   root: Represents the Tk instance 
         -   width: Represents the size of the canvas in the X dimension.
         -   height: Represents the size of the canvas in the X dimension.
         -   points: A list of shape (vertices_num,3) representing the vertices and their coordinates
@@ -163,9 +183,9 @@ class Solution():
         dy = self.previous_y - event.y 
         dx = self.previous_x - event.x 
 
-        # Apply Rotation to all the points
-        self.points = self.rotateY(-dx*self.epsilon, self.points)
-        self.points = self.rotateX(dy*self.epsilon, self.points)
+        # Save the camera rotation and apply while filling color
+        self.rot_y += -dx*self.epsilon
+        self.rot_x += dy*self.epsilon
 
         # Display the object and call mouseClick event
         self.fillColor(faces)
@@ -182,21 +202,25 @@ class Solution():
         -   None
         """
 
+        # Apply the camera transform to the points
+        cameraPoints = self.rotateY(self.rot_y, self.points)
+        cameraPoints = self.rotateX(self.rot_x, cameraPoints)
+
         # Initialization
         self.canvas.delete('all')
         w = self.canvas.winfo_width()/2         # X-coordinate of origin
         h = self.canvas.winfo_height()/2        # Y-coordinate of origin
-
+        
         # Scale all the points by the farthest point so the worst case object fills approximately half the window
-        farthest_point_dist = max(np.linalg.norm(self.points, axis=0))
+        farthest_point_dist = max(np.linalg.norm(cameraPoints, axis=0))
         scale = 0.6*min(w,h)/farthest_point_dist
 
         # Display the faces
         for i in range(len(faces)):
             # Extract the vertices
-            point1 = self.points[:,faces[i][0]]
-            point2 = self.points[:,faces[i][1]]
-            point3 = self.points[:,faces[i][2]]
+            point1 = cameraPoints[:,faces[i][0]]
+            point2 = cameraPoints[:,faces[i][1]]
+            point3 = cameraPoints[:,faces[i][2]]
 
             # Scale point to fit the window and move origin from top left to the center of the window
             canvasPoint1 = scale*point1 + np.array([w, h, 0])
@@ -226,9 +250,6 @@ class Solution():
                     self.canvas.create_line(canvasPoint2[0], canvasPoint2[1], canvasPoint3[0], canvasPoint3[1], fill = BLACK, width=3)
                 if self.isLineOnEdgeOfCube(point3, point1):
                     self.canvas.create_line(canvasPoint3[0], canvasPoint3[1], canvasPoint1[0], canvasPoint1[1], fill = BLACK, width=3)
-
-                origin = np.array([0.0, 0.0, 0.0])*scale + np.array([w, h, 0])
-                self.canvas.create_oval(origin[0], origin[1], origin[0], origin[1], outline='red', width=10)
 
     def createCanvas(self):
         """
