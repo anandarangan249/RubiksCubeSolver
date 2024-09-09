@@ -20,6 +20,7 @@ ColorMap = {
     "-Y": ORANGE,
     "+Z": GREEN,
     "-Z": BLUE,
+    "O" : BLACK, 
 }
 
 SIDE_LENGTH = 1.0
@@ -63,7 +64,6 @@ class Solution():
         cube_points = []
         cube_edges = []
         cube_faces = []
-        cube_colors = []
 
         points = []
         edges = []
@@ -81,7 +81,6 @@ class Solution():
         # Get the edge and face information from lines vertices_num+2 - vertices_num+faces_num+1
         for i in range(int(vertices_num)+1,len(data)):
             v1, v2, v3 = data[i][0].split(",")
-            cube_colors.append(self.getFaceColor(cube_points, int(v1) - 1, int(v2) - 1, int(v3) - 1))
             cube_faces.append([int(v1)-1, int(v2)-1, int(v3)-1])
             if (int(v1)-1, int(v2)-1) not in edges:
                 cube_edges.append([int(v1)-1, int(v2)-1])
@@ -96,7 +95,6 @@ class Solution():
         points.extend(cube_points)
         edges.extend(cube_edges)
         faces.extend(cube_faces)
-        colors.extend(cube_colors)
 
         # Duplicate the cube data to form a 2x2 cube
         for i in range(1,8):
@@ -104,7 +102,10 @@ class Solution():
             points.extend((np.array(cube_points) + offset_vector).tolist())
             edges.extend((np.array(cube_edges) + i*8).tolist())
             faces.extend((np.array(cube_faces) + i*8).tolist())
-            colors.extend(cube_colors)
+        
+        # Determine face colors
+        for face in faces:
+            colors.append(self.getFaceColor(points, face[0], face[1], face[2]))
 
         return points, edges, faces, colors
 
@@ -286,8 +287,20 @@ class Solution():
         point2 = np.array(pointsList[v2])
         point3 = np.array(pointsList[v3])
 
+        # Assumption centroid is an inside point
+        overallCentroid = np.mean(pointsList, axis = 0)
+        cubeIdx = v1 // 8
+        cubeCentroid = np.mean(pointsList[cubeIdx * 8 : (cubeIdx + 1) * 8], axis = 0)
+
         # Get the normal vector
-        normal_vector = self.computeOutwardNormal(point1, point2, point3, np.array([0,0,0]))
+        normal_vector = self.computeOutwardNormal(point1, point2, point3, cubeCentroid)
+
+        # An outside face is determined by its distance from centroid 
+        # For 2x2, outside face is ATLEAST SIDE_LENGTH away from centroid
+        faceCentroid = (point1 + point2 + point3) / 3
+        if np.linalg.norm(faceCentroid - overallCentroid) < SIDE_LENGTH:
+            return ColorMap["O"] 
+        
 
         if (normal_vector[0] > EPSILON):
             return ColorMap["+X"]
