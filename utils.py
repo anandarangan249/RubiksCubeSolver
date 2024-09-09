@@ -228,9 +228,14 @@ class Solution():
             canvasPoint2 = scale*point2 + np.array([w, h, 0])
             canvasPoint3 = scale*point3 + np.array([w, h, 0])
 
+            # Calculate the local interior point for the smaller cube
+            cubeIdx = i // 12
+            cubeCenter = np.mean(cameraPoints[:, cubeIdx * 8 : (cubeIdx + 1) * 8], axis = 1)
+            canvasCubeCenter = scale * cubeCenter + np.array([w, h, 0])
+
             # Determine how much the normal vector aligns with the Z axis 
             # Dot product of the normal vector and the Z axis
-            factor = self.computeAngleWithZ(canvasPoint1, canvasPoint2, canvasPoint3)
+            factor = self.computeAngleWithZ(canvasPoint1, canvasPoint2, canvasPoint3, canvasCubeCenter)
 
             # Determine if it is an outside face
             outside_face = self.isOutsideFace(point1, point2, point3)
@@ -382,29 +387,19 @@ class Solution():
             normal_vector = -1.0 * normal_vector
         return normal_vector
 
-    def computeAngleWithZ(self, point1, point2, point3):
+    def computeAngleWithZ(self, point1, point2, point3, interiorPoint):
         """
         Computes how much the outward normal vector of the plane containing three points 
-        aligns with the Z axis
-
-        Assumption1: The given 3D image is convex
-
-        Assumption2: Origin is an interior point to the object
-        A solution to this could be to use the centroid of the object as refernce to compute the
-        outward normal vector
+        aligns with the Z axis, given a local interior point
 
         Args:
         -   point1, point2, point3 - 3 numpy arrays of shape (3,1) corresponding to the three vertices
         of a face
+        -   interiorPoint - numpy array of shape (3,1) representing a local interior point
 
         Returns:
         -   A number between -1.0 and 1.0 corresponding to the level of alignment with Z axis
         """
-
-        # set Origin as the interior point
-        w = self.canvas.winfo_width()/2         # X-coordinate of origin
-        h = self.canvas.winfo_height()/2        # Y-coordinate of origin
-        interiorPoint = np.array([w, h, 0])
 
         # Get the outward normal vector
         normal_vector = self.computeOutwardNormal(point1, point2, point3, interiorPoint)
