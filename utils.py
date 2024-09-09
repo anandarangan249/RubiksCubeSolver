@@ -238,7 +238,8 @@ class Solution():
             factor = self.computeAngleWithZ(canvasPoint1, canvasPoint2, canvasPoint3, canvasCubeCenter)
 
             # Determine if it is an outside face
-            outside_face = self.isOutsideFace(point1, point2, point3)
+            centroid = np.mean(cameraPoints, axis = 1)
+            outside_face = self.isOutsideFace(point1, point2, point3, centroid)
 
             # Find the color corresponding to the alignment
             fill_color = self.colors[i]
@@ -292,20 +293,14 @@ class Solution():
         point2 = np.array(pointsList[v2])
         point3 = np.array(pointsList[v3])
 
-        # Assumption centroid is an inside point
-        overallCentroid = np.mean(pointsList, axis = 0)
-        cubeIdx = v1 // 8
-        cubeCentroid = np.mean(pointsList[cubeIdx * 8 : (cubeIdx + 1) * 8], axis = 0)
-
-        # Get the normal vector
-        normal_vector = self.computeOutwardNormal(point1, point2, point3, cubeCentroid)
-
-        # An outside face is determined by its distance from centroid 
-        # For 2x2, outside face is ATLEAST SIDE_LENGTH away from centroid
-        faceCentroid = (point1 + point2 + point3) / 3
-        if np.linalg.norm(faceCentroid - overallCentroid) < SIDE_LENGTH:
-            return ColorMap["O"] 
+        globalCentroid = np.mean(pointsList, axis = 0)
+        if not self.isOutsideFace(point1, point2, point3, globalCentroid):
+            return ColorMap["O"]
         
+        # Get the normal vector
+        cubeIdx = v1 // 8
+        localCentroid = np.mean(pointsList[cubeIdx * 8 : (cubeIdx + 1) * 8], axis = 0)
+        normal_vector = self.computeOutwardNormal(point1, point2, point3, localCentroid)        
 
         if (normal_vector[0] > EPSILON):
             return ColorMap["+X"]
@@ -325,25 +320,23 @@ class Solution():
                                                                                                     normal_vector[2])
 
 ##   Math Functions
-    def isOutsideFace(self, point1, point2, point3):
+    def isOutsideFace(self, point1, point2, point3, globalCentroid):
         """
-        Given three points, this function finds if the plane formed by them is on the 
-        outside of the cube.
-
-        Assumption: uses the global const SIDE_LENGTH
+        Given three points and the global centroid, this function finds if the plane formed by the three 
+        points is on the outside of the cube.
 
         Args:
         -   point1, point2, point3 - 3 numpy arrays of shape (3,1) corresponding to the points in the face
+        -   globalCentroid - numpy array of shape (3,1) centroid of cameraPoints
 
         Returns:
-        -   For 2x2, True if origin lies on the plane; False otherwise
+        -   For 2x2, True if distance of triangle centroid from global centroid is greater than SIDE_LENGTH
         """
         
-        normal_vector = np.cross(point2 - point1, point3 - point1)
-        origin = np.array([0.0, 0.0, 0.0])
-        if abs(np.dot(normal_vector, origin - point1)) < EPSILON:
-            return False
-        return True
+        triangle_centroid = (point1 + point2 + point3) / 3
+        if np.linalg.norm(triangle_centroid - globalCentroid) > SIDE_LENGTH:
+            return True
+        return False
 
     def isLineOnEdgeOfCube(self, point1, point2):
         """
