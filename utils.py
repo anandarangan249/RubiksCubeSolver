@@ -40,6 +40,9 @@ class Solution():
         self.points = np.array([])
         self.colors = []
 
+        # State space variables
+        self.X = np.tile(np.identity(4), (8,1))
+
         # Camera related parameters
         self.pan_x = 0.0
         self.pan_y = 0.0
@@ -59,13 +62,14 @@ class Solution():
         -   points: A list of shape (vertices_num,3) representing the vertices and their coordinates
         -   edges: A list of the form [..., (vi, vj), ...] representing a unique edge between vertex i and j
         -   faces: A list of the form [..., (vi, vj, vk), ...] representing a face containing vertices i, j and k
+        -   colors: A list of string representing the color of the corresponding face
         """
 
         cube_points = []
         cube_edges = []
         cube_faces = []
 
-        points = []
+        points = np.array([])
         edges = []
         faces = []
         colors = []
@@ -89,23 +93,33 @@ class Solution():
             if (int(v2)-1, int(v3)-1) not in edges:
                 cube_edges.append([int(v2)-1, int(v3)-1])
 
-        # For 2x2 cube, offset the initial cube points by 0.5 * SIDE_LENGTH
-        cube_points = (np.array(cube_points) + [-0.5, -0.5, -0.5]).tolist()
+        # Convert cube_points to (4,N) numpy array
+        cube_points = np.array(cube_points).transpose()
+        cube_points = np.append(cube_points, np.ones((1, cube_points.shape[1])), axis = 0)
 
-        points.extend(cube_points)
-        edges.extend(cube_edges)
-        faces.extend(cube_faces)
+        # For each smaller cube in 2x2 cube, define the state
+        # and the points relative to the cube centroid state        
+        for i in range(8):
+            # Translation of small cube centroid
+            translation = np.array([-1, -1, -1]) * SIDE_LENGTH / 2
+            translation += np.array([(i // 4) % 2, (i // 2) % 2, i % 2]) * SIDE_LENGTH
+            self.X[i *4 : i * 4 + 3, 3] = translation
+            
+            # Transform cube_points relative to small cube centroid
+            transformation_matrix = self.X[i * 4 : (i + 1) * 4, :]
+            cube_points_new = np.matmul(transformation_matrix, cube_points)
 
-        # Duplicate the cube data to form a 2x2 cube
-        for i in range(1,8):
-            offset_vector = [(i // 4) % 2, (i // 2) % 2, i % 2]
-            points.extend((np.array(cube_points) + offset_vector).tolist())
+            # Update points, edges, faces
+            if points.size == 0:
+                points = cube_points_new[:-1, :]
+            else:
+                points = np.hstack((points, cube_points_new[:-1, :]))
             edges.extend((np.array(cube_edges) + i*8).tolist())
             faces.extend((np.array(cube_faces) + i*8).tolist())
         
         # Determine face colors
         for face in faces:
-            colors.append(self.getFaceColor(points, face[0], face[1], face[2]))
+            colors.append(self.getFaceColor(points.transpose().tolist(), face[0], face[1], face[2]))
 
         return points, edges, faces, colors
 
@@ -131,7 +145,7 @@ class Solution():
         self.root = root
         self.width = width
         self.height = height
-        self.points = np.transpose(points)
+        self.points = points
         self.epsilon = 0.01*mouse_speed
         self.colors = colors
 
